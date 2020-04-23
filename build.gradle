@@ -1,0 +1,117 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.12"
+    }
+}
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '1.3.72'
+    id "com.google.protobuf" version '0.8.12'
+}
+
+apply plugin: "idea"
+apply plugin: "application"
+
+group 'com.ziegler.sebastian'
+version '1.0-SNAPSHOT'
+
+repositories {
+    google()
+    jcenter()
+    mavenCentral()
+    mavenLocal()
+}
+
+ext {
+    grpcKotlinVersion = "0.1.1"
+    grpcVersion = '1.28.1' // CURRENT_GRPC_VERSION
+    protobufVersion = '3.11.4'
+    kotlinVersion = '1.3.72'
+    coroutinesVersion = '1.3.5'
+    googleauthVersion = '0.20.0'
+}
+
+dependencies {
+    // This repo
+    implementation "io.grpc:grpc-kotlin-stub:$grpcKotlinVersion"
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
+
+    // Grpc and Protobuf
+    implementation "com.google.protobuf:protobuf-java:$protobufVersion"
+    implementation "com.google.protobuf:protobuf-java-util:$protobufVersion"
+    implementation "io.grpc:grpc-netty-shaded:$grpcVersion"
+    implementation "io.grpc:grpc-protobuf:$grpcVersion"
+    implementation "io.grpc:grpc-stub:$grpcVersion"
+
+    // Java
+    compileOnly "javax.annotation:javax.annotation-api:1.2"
+
+    // Google
+    implementation "com.google.guava:guava:28.2-jre"
+}
+
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:$protobufVersion" }
+    plugins {
+        // Specify protoc to generate using kotlin protobuf plugin
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
+        }
+        // Specify protoc to generate using our grpc kotlin plugin
+        grpckt {
+            artifact = "io.grpc:protoc-gen-grpc-kotlin:$grpcKotlinVersion"
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.plugins {
+                // Generate Java gRPC classes
+                grpc { }
+                // Generate Kotlin gRPC using the custom plugin from library
+                grpckt { }
+            }
+        }
+    }
+}
+
+startScripts.enabled = false
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1."
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir 'src/main/proto'
+        }
+    }
+}
+
+task helloWorldClient(type: CreateStartScripts) {
+    mainClassName = "ziegler.sebastian.helloworld.HelloWorldClient"
+    applicationName = "hello-world-client"
+    outputDir = startScripts.outputDir
+    classpath = startScripts.classpath
+}
+
+task helloWorldServer(type: CreateStartScripts) {
+    mainClassName = "ziegler.sebastian.helloworld.HelloWorldServer"
+    applicationName = "hello-world-server"
+    outputDir = startScripts.outputDir
+    classpath = startScripts.classpath
+}
+
+applicationDistribution.into("bin") {
+    from(helloWorldClient)
+    from(helloWorldServer)
+    fileMode = 0755
+}
